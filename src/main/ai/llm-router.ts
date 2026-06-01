@@ -758,6 +758,10 @@ export class LLMRouter {
       if (!trimmed || !trimmed.startsWith("data: ")) return;
       try {
         const parsed = JSON.parse(trimmed.slice(6)) as any;
+        if (parsed.type === "error") {
+          const errorMsg = parsed.error?.message || "Unknown stream error";
+          throw new Error(`Anthropic stream error: ${errorMsg}`);
+        }
         if (parsed.type === "content_block_delta" && parsed.delta?.text) {
           fullContent += parsed.delta.text;
           onChunk(parsed.delta.text);
@@ -766,8 +770,11 @@ export class LLMRouter {
           promptTokens = parsed.message.usage.input_tokens;
         if (parsed.type === "message_delta" && parsed.usage)
           completionTokens = parsed.usage.output_tokens || 0;
-      } catch {
-        /* skip */
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith("Anthropic stream error:")) {
+          throw err;
+        }
+        /* skip malformed JSON */
       }
     };
 

@@ -1,16 +1,16 @@
-# Anything Analyzer v3.6.19
+# Anything Analyzer v3.6.20
 
 ## 修复
 
-- **Responses API incomplete 状态显式报错** — 修复 `status: "incomplete"` 和 `response.incomplete` SSE 被当作成功响应的问题
-  - 非流式响应会携带 `incomplete_details.reason` 抛出明确错误
-  - 流式响应遇到 `response.incomplete` 会停止并返回截断原因，避免误用部分输出
+- **Anthropic 兼容流式错误显式报错** — 修复 MiniMax/Anthropic SSE 返回 `type: "error"` 时被忽略并产生空成功响应的问题
+  - 流式错误事件会携带服务端错误信息抛出异常
+  - 保留 malformed JSON 容错逻辑，避免影响正常流式增量解析
 
 ## 下载
 
 | 平台 | 文件 |
 |------|------|
-| Windows | Anything-Analyzer-Setup-3.6.19.exe |
-| macOS (Apple Silicon) | Anything-Analyzer-3.6.19-arm64.dmg |
-| macOS (Intel) | Anything-Analyzer-3.6.19-x64.dmg |
-| Linux | Anything-Analyzer-3.6.19.AppImage |
+| Windows | Anything-Analyzer-Setup-3.6.20.exe |
+| macOS (Apple Silicon) | Anything-Analyzer-3.6.20-arm64.dmg |
+| macOS (Intel) | Anything-Analyzer-3.6.20-x64.dmg |
+| Linux | Anything-Analyzer-3.6.20.AppImage |

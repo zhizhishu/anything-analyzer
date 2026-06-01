@@ -437,6 +437,29 @@ describe("LLMRouter", () => {
   });
 
   describe("completeAnthropic - streaming", () => {
+    it("should reject when Anthropic stream emits an error payload", async () => {
+      const config: LLMProviderConfig = {
+        name: "minimax",
+        baseUrl: "https://api.minimax.io/anthropic/v1",
+        apiKey: "test-minimax-key",
+        model: "MiniMax-M2.7",
+        maxTokens: 4096,
+      };
+      fetchSpy.mockResolvedValueOnce(
+        createSSEResponse([
+          {
+            data: '{"type":"error","error":{"message":"overloaded"}}',
+          },
+        ]),
+      );
+
+      const router = new LLMRouter(config);
+
+      await expect(
+        router.complete([{ role: "user", content: "test" }], () => {}),
+      ).rejects.toThrow("Anthropic stream error: overloaded");
+    });
+
     it("should parse the final SSE line when the stream has no trailing newline", async () => {
       const config: LLMProviderConfig = {
         name: "minimax",
