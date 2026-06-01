@@ -68,10 +68,35 @@ describe("LLMRouter", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   describe("routing", () => {
+    it("should abort while waiting to retry rate-limited requests", async () => {
+      vi.useFakeTimers();
+      const controller = new AbortController();
+      fetchSpy.mockResolvedValueOnce(
+        new Response("rate limited", {
+          status: 429,
+          headers: { "retry-after": "60" },
+        }),
+      );
+
+      const router = new LLMRouter(baseConfig);
+      const request = router.complete(
+        [{ role: "user", content: "test" }],
+        undefined,
+        controller.signal,
+      );
+      await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+
+      controller.abort();
+
+      await expect(request).rejects.toThrow("LLM 请求已取消");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
     it("should connect abort signal to standard LLM requests", async () => {
       const controller = new AbortController();
       fetchSpy.mockImplementationOnce((_url, options) => {
@@ -316,6 +341,21 @@ describe("LLMRouter", () => {
       await expect(
         router.complete([{ role: "user", content: "test" }]),
       ).rejects.toThrow("Responses API incomplete: max_output_tokens");
+    });
+
+    it("should reject failed Responses API results", async () => {
+      const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
+      fetchSpy.mockResolvedValueOnce(
+        createJSONResponse({
+          status: "failed",
+        }),
+      );
+
+      const router = new LLMRouter(config);
+
+      await expect(
+        router.complete([{ role: "user", content: "test" }]),
+      ).rejects.toThrow("Responses API failed: unknown");
     });
   });
 

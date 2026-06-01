@@ -78,6 +78,24 @@ function maskSensitiveHeaders(headers: Record<string, string>): Record<string, s
   return masked;
 }
 
+function delayWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(signal.reason);
+
+  return new Promise((resolve, reject) => {
+    const cleanup = (): void => signal?.removeEventListener("abort", abort);
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+    const abort = (): void => {
+      clearTimeout(timeout);
+      cleanup();
+      reject(signal?.reason);
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
 /**
  * LLMRouter — Unified interface for calling different LLM providers.
  * Supports OpenAI, Anthropic, and OpenAI-compatible APIs.
@@ -109,6 +127,11 @@ export class LLMRouter {
     if (obj.type === 'error' && typeof obj.error === 'object' && obj.error !== null) {
       const err = obj.error as Record<string, unknown>;
       throw new Error(`LLM API 错误: ${err.type ?? 'unknown'} — ${err.message ?? JSON.stringify(err)}`);
+    }
+
+    // Responses API failed payloads need endpoint-specific handling.
+    if (obj.status === "failed") {
+      return data as T;
     }
 
     // OpenAI error format: { error: { message, type, code } }
@@ -576,11 +599,15 @@ export class LLMRouter {
     const data = await this.safeParseJson<{
       status?: string;
       incomplete_details?: ResponsesIncompleteDetails;
+      error?: { message?: string };
       output_text?: string;
       usage?: { input_tokens: number; output_tokens: number };
     }>(response);
     if (data.status === "incomplete") {
       throw new Error(`Responses API incomplete: ${data.incomplete_details?.reason || "unknown"}`);
+    }
+    if (data.status === "failed") {
+      throw new Error(`Responses API failed: ${data.error?.message || "unknown"}`);
     }
     return {
       content: data.output_text || "",
@@ -838,7 +865,7 @@ export class LLMRouter {
           response.headers.get("retry-after") || "5",
           10,
         );
-        await new Promise((r) => setTimeout(r, retryAfter * 1000));
+        await delayWithAbort(retryAfter * 1000, signal);
         return this.fetchWithRetry(url, options, retries - 1, isStreaming, signal);
       }
 
