@@ -289,5 +289,23 @@ describe("LLMRouter", () => {
       const body = JSON.parse(options.body);
       expect(body.stream).toBe(true);
     });
+
+    it("should reject when Responses API stream emits a failure event", async () => {
+      const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
+      fetchSpy.mockResolvedValueOnce(
+        createSSEResponse([
+          {
+            event: "response.failed",
+            data: '{"error":{"message":"rate limit exceeded"}}',
+          },
+        ]),
+      );
+
+      const router = new LLMRouter(config);
+
+      await expect(
+        router.complete([{ role: "user", content: "test" }], () => {}),
+      ).rejects.toThrow("Responses API stream error: rate limit exceeded");
+    });
   });
 });

@@ -691,23 +691,25 @@ export class LLMRouter {
           continue;
         }
         if (!trimmed.startsWith("data: ")) continue;
+        let parsed: any;
         try {
-          const parsed = JSON.parse(trimmed.slice(6)) as any;
-          if (currentEvent === "response.output_text.delta" && parsed.delta) {
-            fullContent += parsed.delta;
-            onChunk(parsed.delta);
-          }
-          if (currentEvent === "response.completed" && parsed.response?.usage) {
-            promptTokens = parsed.response.usage.input_tokens || 0;
-            completionTokens = parsed.response.usage.output_tokens || 0;
-          }
-          if (currentEvent === "error" || currentEvent === "response.failed") {
-            const errorMsg =
-              parsed.message || parsed.error?.message || "Unknown stream error";
-            throw new Error(`Responses API stream error: ${errorMsg}`);
-          }
+          parsed = JSON.parse(trimmed.slice(6)) as any;
         } catch {
           /* skip malformed JSON */
+          continue;
+        }
+        if (currentEvent === "response.output_text.delta" && parsed.delta) {
+          fullContent += parsed.delta;
+          onChunk(parsed.delta);
+        }
+        if (currentEvent === "response.completed" && parsed.response?.usage) {
+          promptTokens = parsed.response.usage.input_tokens || 0;
+          completionTokens = parsed.response.usage.output_tokens || 0;
+        }
+        if (currentEvent === "error" || currentEvent === "response.failed") {
+          const errorMsg =
+            parsed.message || parsed.error?.message || "Unknown stream error";
+          throw new Error(`Responses API stream error: ${errorMsg}`);
         }
       }
     }
