@@ -341,6 +341,31 @@ describe("LLMRouter", () => {
       expect(result.completionTokens).toBe(200);
     });
 
+    it("should parse message output when output_text is omitted", async () => {
+      const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
+      fetchSpy.mockResolvedValueOnce(
+        createJSONResponse({
+          output: [
+            {
+              type: "message",
+              content: [
+                { type: "output_text", text: "# Report\n" },
+                { type: "output_text", text: "Content from output" },
+              ],
+            },
+          ],
+          usage: { input_tokens: 30, output_tokens: 40 },
+        }),
+      );
+
+      const router = new LLMRouter(config);
+      const result = await router.complete([{ role: "user", content: "test" }]);
+
+      expect(result.content).toBe("# Report\nContent from output");
+      expect(result.promptTokens).toBe(30);
+      expect(result.completionTokens).toBe(40);
+    });
+
     it("should reject incomplete Responses API results", async () => {
       const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
       fetchSpy.mockResolvedValueOnce(

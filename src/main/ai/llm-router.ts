@@ -43,6 +43,19 @@ type AnthropicContentBlock = AnthropicTextBlock | AnthropicToolUseBlock;
 
 const DEFAULT_TIMEOUT = 600000; // 10 minutes — LLM relay servers can be slow; user can cancel manually
 
+function extractResponsesOutputText(output: Array<{ type: string; content?: Array<{ type: string; text: string }> }>): string {
+  let content = "";
+  for (const item of output) {
+    if (item.type === "message" && Array.isArray(item.content)) {
+      content += item.content
+        .filter((c) => c.type === "output_text")
+        .map((c) => c.text)
+        .join("");
+    }
+  }
+  return content;
+}
+
 /**
  * Sanitize string content in LLM request body to remove control characters
  * that may break JSON parsing in intermediate proxies.
@@ -512,15 +525,7 @@ export class LLMRouter {
       }
 
       // No function calls → extract text
-      let content = "";
-      for (const item of data.output) {
-        if (item.type === "message" && Array.isArray(item.content)) {
-          content += item.content
-            .filter((c) => c.type === "output_text")
-            .map((c) => c.text)
-            .join("");
-        }
-      }
+      let content = extractResponsesOutputText(data.output);
 
       // Fallback: check output_text at top level
       if (!content && typeof data.output_text === "string") {
@@ -613,6 +618,10 @@ export class LLMRouter {
       incomplete_details?: ResponsesIncompleteDetails;
       error?: { message?: string };
       output_text?: string;
+      output?: Array<{
+        type: string;
+        content?: Array<{ type: string; text: string }>;
+      }>;
       usage?: { input_tokens: number; output_tokens: number };
     }>(response);
     if (data.status === "incomplete") {
@@ -621,8 +630,9 @@ export class LLMRouter {
     if (data.status === "failed") {
       throw new Error(`Responses API failed: ${data.error?.message || "unknown"}`);
     }
+    const content = data.output_text || (Array.isArray(data.output) ? extractResponsesOutputText(data.output) : "");
     return {
-      content: data.output_text || "",
+      content,
       promptTokens: data.usage?.input_tokens || 0,
       completionTokens: data.usage?.output_tokens || 0,
     };
