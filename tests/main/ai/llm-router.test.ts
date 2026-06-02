@@ -210,6 +210,27 @@ describe("LLMRouter", () => {
       expect(result.completionTokens).toBe(10);
     });
 
+    it("should reject Anthropic-compatible responses without text content", async () => {
+      const config: LLMProviderConfig = {
+        name: "minimax",
+        baseUrl: "https://api.minimax.io/anthropic/v1",
+        apiKey: "test-minimax-key",
+        model: "MiniMax-M2.7-highspeed",
+        maxTokens: 4096,
+      };
+      fetchSpy.mockResolvedValueOnce(
+        createJSONResponse({
+          content: [{ type: "tool_use", id: "call-1", name: "lookup", input: {} }],
+        }),
+      );
+
+      const router = new LLMRouter(config);
+
+      await expect(
+        router.complete([{ role: "user", content: "hello" }]),
+      ).rejects.toThrow("LLM 响应格式异常: 缺少 text content 字段");
+    });
+
     it("should route to completions endpoint when apiType is undefined", async () => {
       const config: LLMProviderConfig = { ...baseConfig };
       fetchSpy.mockResolvedValueOnce(

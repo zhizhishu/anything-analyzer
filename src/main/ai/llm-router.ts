@@ -692,6 +692,9 @@ export class LLMRouter {
       .filter((c) => c.type === "text")
       .map((c) => c.text)
       .join("");
+    if (content.length === 0) {
+      throw new Error(`LLM 响应格式异常: 缺少 text content 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+    }
     return {
       content,
       promptTokens: data.usage?.input_tokens || 0,
