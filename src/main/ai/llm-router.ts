@@ -86,6 +86,10 @@ function requireLLMContent(content: string, fieldName: string): string {
   return content;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function parseStreamJson<T>(data: string, providerName: string): T {
   try {
     return JSON.parse(data) as T;
@@ -460,6 +464,7 @@ export class LLMRouter {
         const toolResults: Array<{ type: "tool_result"; tool_use_id: string; content: string }> = [];
         for (const block of toolUseBlocks) {
           let result: string;
+          if (!isRecord(block.input)) throw new Error("tool_use input must be an object");
           try {
             result = await callTool(block.name, block.input);
           } catch (err) {

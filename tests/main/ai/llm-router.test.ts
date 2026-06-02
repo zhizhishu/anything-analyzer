@@ -674,6 +674,31 @@ describe("LLMRouter", () => {
   });
 
   describe("completeWithTools - Anthropic", () => {
+    it("should reject Anthropic tool uses with non-object input", async () => {
+      const config: LLMProviderConfig = {
+        name: "minimax",
+        baseUrl: "https://api.minimax.io/anthropic/v1",
+        apiKey: "test-minimax-key",
+        model: "MiniMax-M2.7-highspeed",
+        maxTokens: 4096,
+      };
+      fetchSpy.mockResolvedValueOnce(
+        createJSONResponse({
+          content: [{ type: "tool_use", id: "call-1", name: "lookup", input: "query=test" }],
+        }),
+      );
+
+      const router = new LLMRouter(config);
+
+      await expect(
+        router.completeWithTools(
+          [{ role: "user", content: "hello" }],
+          [{ name: "lookup", description: "Lookup", inputSchema: { type: "object" } }],
+          async () => "unused",
+        ),
+      ).rejects.toThrow("tool_use input must be an object");
+    });
+
     it("should reject final Anthropic tool loop responses without text content", async () => {
       const config: LLMProviderConfig = {
         name: "minimax",
