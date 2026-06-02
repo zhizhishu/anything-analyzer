@@ -557,12 +557,59 @@ describe("LLMRouter", () => {
       ).rejects.toThrow("function_call missing call_id");
     });
 
+    it("should use Responses API call_id when returning function outputs", async () => {
+      const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
+      fetchSpy.mockResolvedValueOnce(
+        createJSONResponse({
+          output: [
+            {
+              type: "function_call",
+              id: "fc-1",
+              call_id: "call-1",
+              name: "lookup",
+              arguments: "{}",
+            },
+          ],
+        }),
+      ).mockResolvedValueOnce(
+        createJSONResponse({
+          output: [
+            {
+              type: "message",
+              content: [{ type: "output_text", text: "done" }],
+            },
+          ],
+        }),
+      );
+
+      const router = new LLMRouter(config);
+      await router.completeWithTools(
+        [{ role: "user", content: "test" }],
+        [{ name: "lookup", description: "Lookup", inputSchema: { type: "object" } }],
+        async () => "tool result",
+      );
+
+      const [, secondOptions] = fetchSpy.mock.calls[1];
+      const secondBody = JSON.parse(secondOptions.body);
+      expect(secondBody.input).toContainEqual({
+        type: "function_call_output",
+        call_id: "call-1",
+        output: "tool result",
+      });
+    });
+
     it("should reject Responses API function calls with non-string arguments", async () => {
       const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
       fetchSpy.mockResolvedValueOnce(
         createJSONResponse({
           output: [
-            { type: "function_call", id: "call-1", name: "lookup", arguments: { query: "test" } },
+            {
+              type: "function_call",
+              id: "fc-1",
+              call_id: "call-1",
+              name: "lookup",
+              arguments: { query: "test" },
+            },
           ],
         }),
       );
