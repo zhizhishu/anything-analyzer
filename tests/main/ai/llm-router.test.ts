@@ -537,6 +537,25 @@ describe("LLMRouter", () => {
         ),
       ).rejects.toThrow("Responses API incomplete: max_output_tokens");
     });
+
+    it("should reject Responses API function calls without call id", async () => {
+      const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
+      fetchSpy.mockResolvedValueOnce(
+        createJSONResponse({
+          output: [{ type: "function_call", name: "lookup", arguments: "{}" }],
+        }),
+      );
+
+      const router = new LLMRouter(config);
+
+      await expect(
+        router.completeWithTools(
+          [{ role: "user", content: "test" }],
+          [{ name: "lookup", description: "Lookup", inputSchema: { type: "object" } }],
+          async () => "unused",
+        ),
+      ).rejects.toThrow("function_call missing call_id");
+    });
   });
 
   describe("completeWithTools - Anthropic", () => {

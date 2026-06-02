@@ -572,8 +572,9 @@ export class LLMRouter {
 
         for (const fc of functionCalls) {
           let result: string;
+          if (!fc.id) throw new Error("function_call missing call_id");
+          if (!fc.name) throw new Error("function_call missing name");
           try {
-            if (!fc.name) throw new Error("function_call missing name");
             const args = JSON.parse(fc.arguments || "{}");
             result = await callTool(fc.name, args);
           } catch (err) {
