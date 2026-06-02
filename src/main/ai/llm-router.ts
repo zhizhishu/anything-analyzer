@@ -548,6 +548,7 @@ export class LLMRouter {
         error?: { message?: string };
         output: Array<ResponsesOutputItem & {
           id?: string;
+          call_id?: string;
           name?: string;
           arguments?: string;
         }>;
@@ -582,7 +583,7 @@ export class LLMRouter {
 
         for (const fc of functionCalls) {
           let result: string;
-          if (!fc.id) throw new Error("function_call missing call_id");
+          if (!fc.call_id) throw new Error("function_call missing call_id");
           if (!fc.name) throw new Error("function_call missing name");
           if (typeof fc.arguments !== "string") throw new Error("function_call arguments must be a string");
           try {
@@ -593,7 +594,7 @@ export class LLMRouter {
           }
           input.push({
             type: "function_call_output",
-            call_id: fc.id,
+            call_id: fc.call_id,
             output: result,
           });
         }
