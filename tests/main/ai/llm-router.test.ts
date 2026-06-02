@@ -366,6 +366,22 @@ describe("LLMRouter", () => {
       expect(result.completionTokens).toBe(40);
     });
 
+    it("should reject malformed Responses API results", async () => {
+      const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
+      fetchSpy.mockResolvedValueOnce(
+        createJSONResponse({
+          id: "resp-test",
+          status: "completed",
+        }),
+      );
+
+      const router = new LLMRouter(config);
+
+      await expect(
+        router.complete([{ role: "user", content: "test" }]),
+      ).rejects.toThrow("LLM 响应格式异常: 缺少 output 字段");
+    });
+
     it("should reject incomplete Responses API results", async () => {
       const config: LLMProviderConfig = { ...baseConfig, apiType: "responses" };
       fetchSpy.mockResolvedValueOnce(

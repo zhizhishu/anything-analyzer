@@ -630,6 +630,9 @@ export class LLMRouter {
     if (data.status === "failed") {
       throw new Error(`Responses API failed: ${data.error?.message || "unknown"}`);
     }
+    if (typeof data.output_text !== "string" && !Array.isArray(data.output)) {
+      throw new Error(`LLM 响应格式异常: 缺少 output 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+    }
     const content = data.output_text || (Array.isArray(data.output) ? extractResponsesOutputText(data.output) : "");
     return {
       content,
